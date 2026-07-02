@@ -1,7 +1,6 @@
 import os
 import sys
 import threading
-import asyncio
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
@@ -44,13 +43,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await update.message.reply_text(
-        "👋 Welcome to ScoreHunter!\n\n"
-        "Choose a channel to explore:\n"
-        "─────────────────────",
-        reply_markup=reply_markup
-    )
-    print("✅ Reply with buttons sent!")
+    # Send image from local file (same folder)
+    try:
+        with open("photo_2026-06-27_22-12-42.jpg", "rb") as photo:
+            await update.message.reply_photo(
+                photo=photo,
+                caption="👋 Welcome to ScoreHunter!\n\n"
+                        "Choose a channel to explore:\n"
+                        "─────────────────────",
+                reply_markup=reply_markup
+            )
+        print("✅ Image sent successfully!")
+    except FileNotFoundError:
+        print("❌ Image file not found!")
+        # Fallback to text if image not found
+        await update.message.reply_text(
+            "👋 Welcome to ScoreHunter!\n\n"
+            "Choose a channel to explore:\n"
+            "─────────────────────",
+            reply_markup=reply_markup
+        )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -61,12 +73,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 def run_bot():
-    """Run the Telegram bot in the main thread."""
+    """Run the Telegram bot."""
     try:
         print(f"🐍 Python version: {sys.version}")
-        print(f"🤖 Bot Token: {TOKEN[:10]}... (truncated)")
         
-        # Create application
         telegram_app = Application.builder().token(TOKEN).build()
         telegram_app.add_handler(CommandHandler("start", start))
         telegram_app.add_handler(CommandHandler("help", help_command))
@@ -74,7 +84,6 @@ def run_bot():
         print("✅ Bot started successfully!")
         print("🔄 Running in polling mode...")
         
-        # Run the bot - this blocks the main thread
         telegram_app.run_polling()
         
     except Exception as e:
@@ -85,10 +94,8 @@ def run_bot():
 if __name__ == "__main__":
     print("🚀 Starting ScoreHunter Bot...")
     
-    # Start Flask in a background thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     print("✅ Flask server started in background")
     
-    # Run the bot in the main thread
     run_bot()
