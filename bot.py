@@ -15,9 +15,9 @@ def health_check():
     return "Bot is running!", 200
 
 def run_flask():
-    """Run Flask on the port Render expects."""
+    """Run Flask in a background thread."""
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 # --- Telegram Bot ---
 TOKEN = os.environ.get("BOT_TOKEN")
@@ -27,8 +27,7 @@ if not TOKEN:
     sys.exit(1)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Log that the command was received
-    print(f"✅ /start command received from user: {update.effective_user.username}")
+    print(f"✅ /start received from: {update.effective_user.username}")
     
     keyboard = [
         [
@@ -51,10 +50,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "─────────────────────",
         reply_markup=reply_markup
     )
-    print("✅ Reply sent with keyboard!")
+    print("✅ Reply with buttons sent!")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"ℹ️ /help command received from user: {update.effective_user.username}")
     await update.message.reply_text(
         "🤖 ScoreHunter Bot\n\n"
         "Commands:\n"
@@ -63,14 +61,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 def run_bot():
-    """Run the Telegram bot with proper event loop."""
+    """Run the Telegram bot in the main thread."""
     try:
         print(f"🐍 Python version: {sys.version}")
         print(f"🤖 Bot Token: {TOKEN[:10]}... (truncated)")
-        
-        # Create a new event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         
         # Create application
         telegram_app = Application.builder().token(TOKEN).build()
@@ -79,10 +73,9 @@ def run_bot():
         
         print("✅ Bot started successfully!")
         print("🔄 Running in polling mode...")
-        print(f"🔗 Bot URL: https://t.me/{TOKEN.split(':')[0] if ':' in TOKEN else 'unknown'}")
         
-        # Run the bot with the event loop
-        loop.run_until_complete(telegram_app.run_polling())
+        # Run the bot - this blocks the main thread
+        telegram_app.run_polling()
         
     except Exception as e:
         print(f"❌ Bot Error: {e}")
@@ -92,9 +85,10 @@ def run_bot():
 if __name__ == "__main__":
     print("🚀 Starting ScoreHunter Bot...")
     
-    # Start the Telegram bot in a background thread
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
+    # Start Flask in a background thread
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    print("✅ Flask server started in background")
     
-    # Start the Flask web server
-    run_flask()
+    # Run the bot in the main thread
+    run_bot()
